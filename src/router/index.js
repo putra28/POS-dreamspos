@@ -209,7 +209,7 @@ const routes = [
   {
     path: '/',
     name: 'sign-in',
-    component: SignIn
+    component: SignIn_3
   },
   {
     path: '/register',

@@ -13,15 +13,15 @@
               </router-link>
               <div class="login-userheading">
                 <h3>Sign In</h3>
-                <h4>Access the Dreamspos panel using your email and passcode.</h4>
+                <h4>Gunakan No. Telp dan Password</h4>
               </div>
               <div class="form-login mb-3">
-                <label class="form-label">Email Address</label>
+                <label class="form-label">No. Telp</label>
                 <div class="form-addons">
                   <Field
                     name="email"
                     type="text"
-                    value="example@dreamstechnologies.com"
+                    value="081234567890"
                     class="form-control"
                     :class="{ 'is-invalid': errors.email }"
                   />
@@ -36,7 +36,7 @@
                   <Field
                     name="password"
                     :type="showPassword ? 'text' : 'password'"
-                    value="123456"
+                    value="password"
                     class="form-control pass-input mt-2"
                     :class="{ 'is-invalid': errors.password }"
                   />
@@ -55,12 +55,6 @@
               <div class="form-login authentication-check">
                 <div class="row">
                   <div class="col-12 d-flex align-items-center justify-content-between">
-                    <div class="custom-control custom-checkbox">
-                      <label class="checkboxs ps-4 mb-0 pb-0 line-height-1">
-                        <input type="checkbox" class="form-control" />
-                        <span class="checkmarks"></span>Remember me
-                      </label>
-                    </div>
                     <div class="text-end">
                       <router-link class="forgot-link" to="/forgot-password"
                         >Forgot Password?</router-link
@@ -118,70 +112,81 @@
 </template>
 <script>
 import { ref } from "vue";
-import { router } from "@/router";
+import { useRouter } from "vue-router";
 import { Form, Field } from "vee-validate";
 import * as Yup from "yup";
+
 export default {
   components: {
     Form,
     Field,
   },
-  data() {
-    return {
-      showPassword: false,
-      password: null,
-      emailError: "",
-      passwordError: "",
-    };
-  },
-  computed: {
-    buttonLabel() {
-      return this.showPassword ? "Hide" : "Show";
-    },
-  },
-  methods: {
-    toggleShow() {
-      this.showPassword = !this.showPassword;
-    },
-  },
   setup() {
-    let users = localStorage.getItem("storedData");
-    if (users === null) {
-      let password = [
-        {
-          email: "example@dreamstechnologies.com",
-          password: "123456",
-        },
-      ];
-      const jsonData = JSON.stringify(password);
-      localStorage.setItem("storedData", jsonData);
-    }
+    const router = useRouter();
+    const showPassword = ref(false);
+    const emailError = ref("");
+    const passwordError = ref("");
+
     const schema = Yup.object().shape({
-      email: Yup.string().required("Email is required").email("Email is invalid"),
-      password: Yup.string()
-        .min(6, "Password must be at least 6 characters")
-        .required("Password is required"),
+      email: Yup.string().required("Data tidak boleh kosong"),
+      password: Yup.string().required("Password tidak boleh kosong"),
     });
-    const onSubmit = (values) => {
+
+    const toggleShow = () => {
+      showPassword.value = !showPassword.value;
+    };
+
+    const onSubmit = async (values) => {
       document.getElementById("email").innerHTML = "";
       document.getElementById("password").innerHTML = "";
-      let data = localStorage.getItem("storedData");
-      var Pdata = JSON.parse(data);
-      const Eresult = Pdata.find(({ email }) => email === values.email);
-      if (Eresult) {
-        if (Eresult.password === values.password) {
-          router.push("/dashboard");
-        } else {
-          document.getElementById("password").innerHTML = "Incorrect password";
+
+      try {
+        const response = await fetch("http://localhost:1111/api/users/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            p_contactUsers: values.email,
+            p_passwordUsers: values.password,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          if (data.message.includes("Akun")) {
+            document.getElementById("email").innerHTML = "Akun tidak ditemukan atau tidak aktif, coba lagi";
+          } else if (data.message.includes("Password")) {
+            document.getElementById("password").innerHTML = "Password salah, coba lagi";
+          }
+          return;
         }
-      } else {
-        document.getElementById("email").innerHTML = "Email is not valid";
+
+        // ✅ Menyimpan data secara terpisah di localStorage
+        localStorage.setItem("id_user", data.data.id_user);
+        localStorage.setItem("nama_user", data.data.nama_user);
+        localStorage.setItem("contact_user", data.data.contact_user);
+        localStorage.setItem("role_user", data.data.role_user);
+        localStorage.setItem("status_user", data.data.status_user);
+        localStorage.setItem("created_at", data.data.created_at);
+        localStorage.setItem("updated_at", data.data.updated_at);
+
+        localStorage.setItem("userData", JSON.stringify(data.data));
+        router.push("/dashboard");
+      } catch (error) {
+        console.error("Error:", error);
+        document.getElementById("email").innerHTML = "Terjadi kesalahan pada server.";
       }
     };
+
     return {
       schema,
       onSubmit,
-      checked: ref(false),
+      showPassword,
+      toggleShow,
+      emailError,
+      passwordError,
     };
   },
 };
